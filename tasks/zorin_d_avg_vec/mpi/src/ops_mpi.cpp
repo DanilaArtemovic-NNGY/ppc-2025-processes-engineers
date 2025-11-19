@@ -2,10 +2,10 @@
 
 #include <mpi.h>
 
-#include <numeric>
 #include <vector>
+#include <cstddef>
+#include <algorithm>
 
-#include "util/include/util.hpp"
 #include "zorin_d_avg_vec/common/include/common.hpp"
 
 namespace zorin_d_avg_vec {
@@ -25,7 +25,8 @@ bool ZorinDAvgVecMPI::PreProcessingImpl() {
 }
 
 bool ZorinDAvgVecMPI::RunImpl() {
-  int rank = 0, size = 0;
+  int rank = 0;
+  int size = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
@@ -40,8 +41,8 @@ bool ZorinDAvgVecMPI::RunImpl() {
   size_t chunk = total_size / size;
   size_t remainder = total_size % size;
 
-  size_t start = rank * chunk + std::min((int)rank, (int)remainder);
-  size_t end = start + chunk + (rank < static_cast<int>(remainder) ? 1 : 0);
+  size_t start = (rank * chunk) + std::min(rank, static_cast<int>(remainder));
+  size_t end = start + chunk + (std::cmp_less(rank, remainder) ? 1 : 0);
 
   double local_sum = 0;
   for (size_t i = start; i < end; ++i) {

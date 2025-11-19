@@ -7,6 +7,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <cctype>
+#include <array>
+#include <cstddef> 
 
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
@@ -47,7 +50,7 @@ class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType
     }
 
     input_.clear();
-    double value;
+    double value = 0.0;
     while (file >> value) {
       input_.push_back(value);
     }
