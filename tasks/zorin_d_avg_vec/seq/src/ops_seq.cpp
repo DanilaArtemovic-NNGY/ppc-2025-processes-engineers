@@ -3,8 +3,8 @@
 #include <numeric>
 #include <vector>
 
-#include "zorin_d_avg_vec/common/include/common.hpp"
 #include "util/include/util.hpp"
+#include "zorin_d_avg_vec/common/include/common.hpp"
 
 namespace zorin_d_avg_vec {
 
@@ -23,14 +23,13 @@ bool ZorinDAvgVecSEQ::PreProcessingImpl() {
 }
 
 bool ZorinDAvgVecSEQ::RunImpl() {
-  const auto& vec = GetInput();
+  const auto &vec = GetInput();
   if (vec.empty()) {
     GetOutput() = 0.0;
     return true;
   }
 
-  const double sum =
-      std::accumulate(vec.begin(), vec.end(), 0.0);
+  const double sum = std::accumulate(vec.begin(), vec.end(), 0.0);
   GetOutput() = sum / static_cast<double>(vec.size());
 
   return true;

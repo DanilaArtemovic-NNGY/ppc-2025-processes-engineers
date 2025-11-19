@@ -5,8 +5,8 @@
 #include <numeric>
 #include <vector>
 
-#include "zorin_d_avg_vec/common/include/common.hpp"
 #include "util/include/util.hpp"
+#include "zorin_d_avg_vec/common/include/common.hpp"
 
 namespace zorin_d_avg_vec {
 
@@ -29,12 +29,12 @@ bool ZorinDAvgVecMPI::RunImpl() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  const auto& vec = GetInput();
+  const auto &vec = GetInput();
   size_t total_size = vec.size();
 
   if (total_size == 0) {
-      GetOutput() = 0.0;
-      return true;
+    GetOutput() = 0.0;
+    return true;
   }
 
   size_t chunk = total_size / size;

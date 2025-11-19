@@ -8,40 +8,36 @@
 #include <tuple>
 #include <vector>
 
+#include "util/include/func_test_util.hpp"
+#include "util/include/util.hpp"
 #include "zorin_d_avg_vec/common/include/common.hpp"
 #include "zorin_d_avg_vec/mpi/include/ops_mpi.hpp"
 #include "zorin_d_avg_vec/seq/include/ops_seq.hpp"
-#include "util/include/func_test_util.hpp"
-#include "util/include/util.hpp"
 
 namespace zorin_d_avg_vec {
 
-class ZorinDAvgVecFuncTests
-    : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
+class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
-  static std::string PrintTestParam(const testing::TestParamInfo<
-    ppc::util::FuncTestParam<InType, OutType, TestType>>& info) {
-  const TestType& p = std::get<
-      static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)
-  >(info.param);
-  std::string name = std::get<2>(p);
+  static std::string PrintTestParam(
+      const testing::TestParamInfo<ppc::util::FuncTestParam<InType, OutType, TestType>> &info) {
+    const TestType &p = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(info.param);
+    std::string name = std::get<2>(p);
 
-  for (char &c : name) {
-    if (!std::isalnum(c)) {
-      c = '_';
+    for (char &c : name) {
+      if (!std::isalnum(c)) {
+        c = '_';
+      }
     }
-  }
-  const std::string& task_name =
-      std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kNameTest)>(info.param);
+    const std::string &task_name =
+        std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kNameTest)>(info.param);
 
-  return task_name + "_" + name;
-}
+    return task_name + "_" + name;
+  }
 
  protected:
   void SetUp() override {
-    TestType params =
-        std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
-    const std::string& filename = std::get<2>(params);
+    TestType params = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
+    const std::string &filename = std::get<2>(params);
     expected_ = std::get<1>(params);
 
     std::string abs_path = ppc::util::GetAbsoluteTaskPath(PPC_ID_zorin_d_avg_vec, filename);
@@ -57,16 +53,16 @@ class ZorinDAvgVecFuncTests
     }
   }
 
-  bool CheckTestOutputData(OutType& output) final {
+  bool CheckTestOutputData(OutType &output) final {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank != 0) {
-        return true;
+      return true;
     }
 
     return std::fabs(output - expected_) < 1e-6;
-}
+  }
 
   InType GetTestInputData() final {
     return input_;
@@ -84,20 +80,18 @@ TEST_P(ZorinDAvgVecFuncTests, FunctionalAverageCheck) {
 }
 
 const std::array<TestType, 5> kTestParams = {{
-    TestType({}, 55.0, "avg_vec_data.txt"),  
-    TestType({}, 5.0,  "avg_vec_equal.txt"),
-    TestType({}, 0.0,  "avg_vec_negative.txt"),
+    TestType({}, 55.0, "avg_vec_data.txt"),
+    TestType({}, 5.0, "avg_vec_equal.txt"),
+    TestType({}, 0.0, "avg_vec_negative.txt"),
     TestType({}, 42.0, "avg_vec_single.txt"),
-    TestType({}, 0.0,  "avg_vec_empty.txt"),
+    TestType({}, 0.0, "avg_vec_empty.txt"),
 }};
 
-const auto kTasks = std::tuple_cat(
-    ppc::util::AddFuncTask<ZorinDAvgVecMPI, InType>(kTestParams, PPC_SETTINGS_zorin_d_avg_vec),
-    ppc::util::AddFuncTask<ZorinDAvgVecSEQ, InType>(kTestParams, PPC_SETTINGS_zorin_d_avg_vec));
+const auto kTasks =
+    std::tuple_cat(ppc::util::AddFuncTask<ZorinDAvgVecMPI, InType>(kTestParams, PPC_SETTINGS_zorin_d_avg_vec),
+                   ppc::util::AddFuncTask<ZorinDAvgVecSEQ, InType>(kTestParams, PPC_SETTINGS_zorin_d_avg_vec));
 
-INSTANTIATE_TEST_SUITE_P(AvgVecFunc,
-                         ZorinDAvgVecFuncTests,
-                         ppc::util::ExpandToValues(kTasks),
+INSTANTIATE_TEST_SUITE_P(AvgVecFunc, ZorinDAvgVecFuncTests, ppc::util::ExpandToValues(kTasks),
                          ZorinDAvgVecFuncTests::PrintTestParam);
 
 }  // namespace

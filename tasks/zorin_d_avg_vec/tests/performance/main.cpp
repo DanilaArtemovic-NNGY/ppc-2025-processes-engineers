@@ -5,22 +5,20 @@
 #include <stdexcept>
 #include <string>
 
+#include "util/include/perf_test_util.hpp"
+#include "util/include/util.hpp"
 #include "zorin_d_avg_vec/common/include/common.hpp"
 #include "zorin_d_avg_vec/mpi/include/ops_mpi.hpp"
 #include "zorin_d_avg_vec/seq/include/ops_seq.hpp"
-#include "util/include/perf_test_util.hpp"
-#include "util/include/util.hpp"
 
 namespace zorin_d_avg_vec {
 
-class ZorinDAvgVecPerfTests
-    : public ppc::util::BaseRunPerfTests<InType, OutType> {
+class ZorinDAvgVecPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
   InType input_;
   OutType expected_ = 55.0;
 
   void SetUp() override {
-    std::string path =
-        ppc::util::GetAbsoluteTaskPath(PPC_ID_zorin_d_avg_vec, "avg_vec_data.txt");
+    std::string path = ppc::util::GetAbsoluteTaskPath(PPC_ID_zorin_d_avg_vec, "avg_vec_data.txt");
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -37,11 +35,13 @@ class ZorinDAvgVecPerfTests
     }
   }
 
-  bool CheckTestOutputData(OutType& output) final {
+  bool CheckTestOutputData(OutType &output) final {
     return std::fabs(output - expected_) < 1e-6;
   }
 
-  InType GetTestInputData() final { return input_; }
+  InType GetTestInputData() final {
+    return input_;
+  }
 };
 
 TEST_P(ZorinDAvgVecPerfTests, PerformanceRunModes) {
@@ -49,12 +49,9 @@ TEST_P(ZorinDAvgVecPerfTests, PerformanceRunModes) {
 }
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, ZorinDAvgVecMPI, ZorinDAvgVecSEQ>(
-        PPC_SETTINGS_zorin_d_avg_vec);
+    ppc::util::MakeAllPerfTasks<InType, ZorinDAvgVecMPI, ZorinDAvgVecSEQ>(PPC_SETTINGS_zorin_d_avg_vec);
 
-INSTANTIATE_TEST_SUITE_P(AvgVecPerf,
-                         ZorinDAvgVecPerfTests,
-                         ppc::util::TupleToGTestValues(kAllPerfTasks),
+INSTANTIATE_TEST_SUITE_P(AvgVecPerf, ZorinDAvgVecPerfTests, ppc::util::TupleToGTestValues(kAllPerfTasks),
                          ZorinDAvgVecPerfTests::CustomPerfTestName);
 
 }  // namespace zorin_d_avg_vec

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "zorin_d_avg_vec/common/include/common.hpp"
 #include "task/include/task.hpp"
+#include "zorin_d_avg_vec/common/include/common.hpp"
 
 namespace zorin_d_avg_vec {
 
