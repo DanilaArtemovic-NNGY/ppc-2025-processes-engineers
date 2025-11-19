@@ -1,15 +1,15 @@
 #include <gtest/gtest.h>
 #include <mpi.h>
 
+#include <array>
+#include <cctype>
 #include <cmath>
+#include <cstddef>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <cctype>
-#include <array>
-#include <cstddef> 
 
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"

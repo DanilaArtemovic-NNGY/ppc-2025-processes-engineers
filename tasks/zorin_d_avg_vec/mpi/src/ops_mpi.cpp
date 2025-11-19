@@ -2,9 +2,9 @@
 
 #include <mpi.h>
 
-#include <vector>
-#include <cstddef>
 #include <algorithm>
+#include <cstddef>
+#include <vector>
 
 #include "zorin_d_avg_vec/common/include/common.hpp"
 
