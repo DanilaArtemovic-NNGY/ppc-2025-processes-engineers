@@ -52,7 +52,7 @@ class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType
     input_.clear();
     double value = 0.0;
     while (file >> value) {
-      input_.push_back(value);
+      input_.push_back(static_cast<int>(value));
     }
   }
 
