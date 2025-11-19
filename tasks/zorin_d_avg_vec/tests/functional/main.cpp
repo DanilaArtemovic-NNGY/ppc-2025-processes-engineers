@@ -54,7 +54,14 @@ class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType
   }
 
   bool CheckTestOutputData(OutType &output) final {
-    int rank;
+    int initialized = 0;
+    MPI_Initialized(&initialized);
+
+    if (!initialized) {
+        return std::fabs(output - expected_) < 1e-6;
+    }
+
+    int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank != 0) {
