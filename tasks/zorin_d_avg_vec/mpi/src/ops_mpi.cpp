@@ -41,7 +41,7 @@ bool ZorinDAvgVecMPI::RunImpl() {
   size_t remainder = total_size % size;
 
   size_t start = rank * chunk + std::min((int)rank, (int)remainder);
-  size_t end = start + chunk + (rank < remainder ? 1 : 0);
+  size_t end = start + chunk + (rank < static_cast<int>(remainder) ? 1 : 0);
 
   double local_sum = 0;
   for (size_t i = start; i < end; ++i) {
