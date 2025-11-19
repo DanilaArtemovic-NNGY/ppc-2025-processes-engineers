@@ -4,8 +4,8 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "zorin_d_avg_vec/common/include/common.hpp"
 
