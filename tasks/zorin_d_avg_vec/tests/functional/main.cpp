@@ -27,7 +27,7 @@ class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType
     std::string name = std::get<2>(p);
 
     for (char &c : name) {
-      if (!std::isalnum(c)) {
+      if (std::isalnum(c) == 0) {
         c = '_';
       }
     }
@@ -60,7 +60,7 @@ class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType
     int initialized = 0;
     MPI_Initialized(&initialized);
 
-    if (!initialized) {
+    if (initialized == 0) {
       return std::fabs(output - expected_) < 1e-6;
     }
 

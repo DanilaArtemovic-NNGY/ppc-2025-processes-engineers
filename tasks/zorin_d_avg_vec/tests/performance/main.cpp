@@ -27,10 +27,10 @@ class ZorinDAvgVecPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType
 
     double x{};
     while (file >> x) {
-      input_.push_back(x);
+      input_.push_back(static_cast<int>(x));
     }
 
-    for (int i = 0; i < 26; i++) {
+    for (int i = 0; i < 24; i++) {
       input_.insert(input_.end(), input_.begin(), input_.end());
     }
   }

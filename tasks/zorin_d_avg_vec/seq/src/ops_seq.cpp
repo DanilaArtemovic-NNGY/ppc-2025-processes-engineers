@@ -3,7 +3,6 @@
 #include <numeric>
 #include <vector>
 
-#include "util/include/util.hpp"
 #include "zorin_d_avg_vec/common/include/common.hpp"
 
 namespace zorin_d_avg_vec {
