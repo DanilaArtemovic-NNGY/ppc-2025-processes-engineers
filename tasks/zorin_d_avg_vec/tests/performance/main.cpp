@@ -30,7 +30,7 @@ class ZorinDAvgVecPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType
       input_.push_back(x);
     }
 
-    for (int i = 0; i < 25; i++) {
+    for (int i = 0; i < 26; i++) {
       input_.insert(input_.end(), input_.begin(), input_.end());
     }
   }
