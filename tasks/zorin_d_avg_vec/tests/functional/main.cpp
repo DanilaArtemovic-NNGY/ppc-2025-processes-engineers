@@ -79,7 +79,7 @@ class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType
   }
 
  private:
-  InType input_{};
+  InType input_;
   OutType expected_{};
 };
 
