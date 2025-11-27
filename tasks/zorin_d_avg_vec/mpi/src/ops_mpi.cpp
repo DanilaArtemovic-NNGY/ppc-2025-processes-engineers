@@ -26,34 +26,50 @@ bool ZorinDAvgVecMPI::PreProcessingImpl() {
 }
 
 bool ZorinDAvgVecMPI::RunImpl() {
-  int rank = 0;
-  int size = 0;
+  int rank = 0, size = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
   const auto &vec = GetInput();
   size_t total_size = vec.size();
 
-  if (total_size == 0) {
-    GetOutput() = 0.0;
-    return true;
+  MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+  std::vector<int> sendcounts(size, 0);
+  std::vector<int> displs(size, 0);
+
+  if (rank == 0) {
+    size_t base = total_size / size;
+    size_t rem = total_size % size;
+
+    for (int i = 0; i < size; i++) {
+      sendcounts[i] = base + (i < rem ? 1 : 0);
+      displs[i] = (i == 0 ? 0 : displs[i-1] + sendcounts[i-1]);
+    }
   }
 
-  size_t chunk = total_size / size;
-  size_t remainder = total_size % size;
+  MPI_Bcast(sendcounts.data(), size, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(displs.data(), size, MPI_INT, 0, MPI_COMM_WORLD);
 
-  size_t start = (rank * chunk) + std::min(rank, static_cast<int>(remainder));
-  size_t end = start + chunk + (std::cmp_less(rank, remainder) ? 1 : 0);
+  std::vector<int> local_vec(sendcounts[rank]);
 
-  double local_sum = 0;
-  for (size_t i = start; i < end; ++i) {
-    local_sum += vec[i];
+  MPI_Scatterv(
+      vec.data(), sendcounts.data(), displs.data(), MPI_INT,
+      local_vec.data(), sendcounts[rank], MPI_INT,
+      0, MPI_COMM_WORLD);
+
+  double local_sum = 0.0;
+  for (int v : local_vec) {
+    local_sum += v;
   }
 
-  double global_sum = 0;
+  double global_sum = 0.0;
   MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  double avg = global_sum / static_cast<double>(total_size);
+  double avg = 0.0;
+  if (total_size != 0) {
+    avg = global_sum / static_cast<double>(total_size);
+  }
 
   GetOutput() = avg;
 
