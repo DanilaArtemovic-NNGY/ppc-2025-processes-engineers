@@ -2,9 +2,7 @@
 
 #include <mpi.h>
 
-#include <algorithm>
 #include <cstddef>
-#include <utility>
 #include <vector>
 
 #include "zorin_d_avg_vec/common/include/common.hpp"
@@ -26,12 +24,13 @@ bool ZorinDAvgVecMPI::PreProcessingImpl() {
 }
 
 bool ZorinDAvgVecMPI::RunImpl() {
-  int rank = 0, size = 0;
+  int rank = 0;
+  int size = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
   const auto &vec = GetInput();
-  size_t total_size = vec.size();
+  std::size_t total_size = vec.size();
 
   MPI_Bcast(&total_size, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
@@ -39,11 +38,14 @@ bool ZorinDAvgVecMPI::RunImpl() {
   std::vector<int> displs(size, 0);
 
   if (rank == 0) {
-    size_t base = total_size / size;
-    size_t rem = total_size % size;
+    std::size_t base = total_size / static_cast<std::size_t>(size);
+    std::size_t rem = total_size % static_cast<std::size_t>(size);
 
-    for (int i = 0; i < size; i++) {
-      sendcounts[i] = base + (i < static_cast<int>(rem) ? 1 : 0);
+    int base_int = static_cast<int>(base);
+    int rem_int = static_cast<int>(rem);
+
+    for (int i = 0; i < size; ++i) {
+      sendcounts[i] = base_int + (i < rem_int ? 1 : 0);
       displs[i] = (i == 0 ? 0 : displs[i - 1] + sendcounts[i - 1]);
     }
   }
