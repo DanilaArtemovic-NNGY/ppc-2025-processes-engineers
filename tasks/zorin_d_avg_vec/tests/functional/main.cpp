@@ -71,7 +71,7 @@ class ZorinDAvgVecFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType
     MPI_Bcast(&ref_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     return std::fabs(ref_value - expected_) < 1e-6;
-    }
+  }
 
   InType GetTestInputData() final {
     return input_;

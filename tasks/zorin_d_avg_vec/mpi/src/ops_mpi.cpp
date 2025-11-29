@@ -43,8 +43,8 @@ bool ZorinDAvgVecMPI::RunImpl() {
     size_t rem = total_size % size;
 
     for (int i = 0; i < size; i++) {
-      sendcounts[i] = base + (i < rem ? 1 : 0);
-      displs[i] = (i == 0 ? 0 : displs[i-1] + sendcounts[i-1]);
+      sendcounts[i] = base + (i < static_cast<int>(rem) ? 1 : 0);
+      displs[i] = (i == 0 ? 0 : displs[i - 1] + sendcounts[i - 1]);
     }
   }
 
@@ -53,10 +53,8 @@ bool ZorinDAvgVecMPI::RunImpl() {
 
   std::vector<int> local_vec(sendcounts[rank]);
 
-  MPI_Scatterv(
-      vec.data(), sendcounts.data(), displs.data(), MPI_INT,
-      local_vec.data(), sendcounts[rank], MPI_INT,
-      0, MPI_COMM_WORLD);
+  MPI_Scatterv(vec.data(), sendcounts.data(), displs.data(), MPI_INT, local_vec.data(), sendcounts[rank], MPI_INT, 0,
+               MPI_COMM_WORLD);
 
   double local_sum = 0.0;
   for (int v : local_vec) {
