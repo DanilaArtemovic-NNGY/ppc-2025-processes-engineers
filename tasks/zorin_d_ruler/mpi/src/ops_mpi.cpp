@@ -83,7 +83,7 @@ bool ZorinDRulerMPI::RunImpl() {
   const int base = n / size;
   const int rem = n % size;
 
-  const int i_start = rank * base + std::min(rank, rem);
+  const int i_start = (rank * base) + std::min(rank, rem);
   const int i_end = i_start + base + (rank < rem ? 1 : 0);
 
   const std::int64_t local_work = DoHeavyWork(n, i_start, i_end);

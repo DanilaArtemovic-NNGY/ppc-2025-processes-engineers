@@ -6,6 +6,7 @@
 #include <tuple>
 
 #include "util/include/func_test_util.hpp"
+#include "util/include/perf_test_util.hpp"
 #include "zorin_d_ruler/common/include/common.hpp"
 #include "zorin_d_ruler/mpi/include/ops_mpi.hpp"
 #include "zorin_d_ruler/seq/include/ops_seq.hpp"
