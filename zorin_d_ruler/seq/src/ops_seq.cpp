@@ -24,7 +24,7 @@ static inline std::int64_t DoHeavyWork(int n) {
 
 }  // namespace
 
-ZorinDRulerSEQ::ZorinDRulerSEQ(const InType& in) {
+ZorinDRulerSEQ::ZorinDRulerSEQ(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
   GetOutput() = 0;
@@ -41,7 +41,9 @@ bool ZorinDRulerSEQ::PreProcessingImpl() {
 
 bool ZorinDRulerSEQ::RunImpl() {
   const int n = GetInput();
-  if (n <= 0) return false;
+  if (n <= 0) {
+    return false;
+  }
 
   const std::int64_t w = DoHeavyWork(n);
   if (w == -1) {

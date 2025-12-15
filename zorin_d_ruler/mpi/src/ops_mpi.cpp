@@ -53,7 +53,7 @@ static inline std::int64_t LineAllSum(std::int64_t local, int rank, int size, MP
 
 }  // namespace
 
-ZorinDRulerMPI::ZorinDRulerMPI(const InType& in) {
+ZorinDRulerMPI::ZorinDRulerMPI(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
   GetOutput() = 0;
@@ -75,7 +75,9 @@ bool ZorinDRulerMPI::RunImpl() {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
   const int n = GetInput();
-  if (n <= 0) return false;
+  if (n <= 0) {
+    return false;
+  }
 
   const int base = n / size;
   const int rem = n % size;

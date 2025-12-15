@@ -1,7 +1,7 @@
 #pragma once
 
-#include "zorin_d_ruler/common/include/common.hpp"
 #include "task/include/task.hpp"
+#include "zorin_d_ruler/common/include/common.hpp"
 
 namespace zorin_d_ruler {
 
@@ -10,7 +10,7 @@ class ZorinDRulerMPI : public BaseTask {
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return ppc::task::TypeOfTask::kMPI;
   }
-  explicit ZorinDRulerMPI(const InType& in);
+  explicit ZorinDRulerMPI(const InType &in);
 
  private:
   bool ValidationImpl() override;

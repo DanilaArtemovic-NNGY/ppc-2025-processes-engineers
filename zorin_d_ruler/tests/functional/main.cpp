@@ -4,30 +4,27 @@
 #include <string>
 #include <tuple>
 
+#include "util/include/func_test_util.hpp"
 #include "zorin_d_ruler/common/include/common.hpp"
 #include "zorin_d_ruler/mpi/include/ops_mpi.hpp"
 #include "zorin_d_ruler/seq/include/ops_seq.hpp"
-#include "util/include/func_test_util.hpp"
 
 namespace zorin_d_ruler {
 
-class ZorinDRulerFuncTests: public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
+class ZorinDRulerFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
-  static std::string PrintTestParam(const TestType& test_param) {
-    return std::to_string(std::get<0>(test_param)) + "_" +
-           std::get<1>(test_param);
+  static std::string PrintTestParam(const TestType &test_param) {
+    return std::to_string(std::get<0>(test_param)) + "_" + std::get<1>(test_param);
   }
 
  protected:
   void SetUp() override {
-    const auto& test_param =
-      std::get<static_cast<std::size_t>(
-          ppc::util::GTestParamIndex::kTestParams)>(GetParam());
+    const auto &test_param = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
 
     input_data_ = std::get<0>(test_param);
   }
 
-  bool CheckTestOutputData(OutType& output_data) final {
+  bool CheckTestOutputData(OutType &output_data) final {
     return output_data == input_data_;
   }
 
@@ -52,24 +49,14 @@ const std::array<TestType, 3> kTestParam = {
 };
 
 const auto kTestTasksList =
-    std::tuple_cat(
-        ppc::util::AddFuncTask<ZorinDRulerMPI, InType>(
-            kTestParam, PPC_SETTINGS_example_processes_2),
-        ppc::util::AddFuncTask<ZorinDRulerSEQ, InType>(
-            kTestParam, PPC_SETTINGS_example_processes_2));
+    std::tuple_cat(ppc::util::AddFuncTask<ZorinDRulerMPI, InType>(kTestParam, PPC_SETTINGS_example_processes_2),
+                   ppc::util::AddFuncTask<ZorinDRulerSEQ, InType>(kTestParam, PPC_SETTINGS_example_processes_2));
 
-const auto kGtestValues =
-    ppc::util::ExpandToValues(kTestTasksList);
+const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
-const auto kFuncTestName =
-    ZorinDRulerFuncTests::
-        PrintFuncTestName<ZorinDRulerFuncTests>;
+const auto kFuncTestName = ZorinDRulerFuncTests::PrintFuncTestName<ZorinDRulerFuncTests>;
 
-INSTANTIATE_TEST_SUITE_P(
-    LineTopologyTests,
-    ZorinDRulerFuncTests,
-    kGtestValues,
-    kFuncTestName);
+INSTANTIATE_TEST_SUITE_P(LineTopologyTests, ZorinDRulerFuncTests, kGtestValues, kFuncTestName);
 
 }  // namespace
 
