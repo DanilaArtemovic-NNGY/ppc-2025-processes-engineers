@@ -2,7 +2,6 @@
 
 #include <mpi.h>
 
-#include <algorithm>
 #include <cstdint>
 
 #include "zorin_d_ruler/common/include/common.hpp"
@@ -11,12 +10,14 @@ namespace zorin_d_ruler {
 
 namespace {
 
-static inline std::int64_t DoHeavyWork(int n, int i_start, int i_end) {
+inline std::int64_t DoHeavyWork(int n, int i_start, int i_end) {
   std::int64_t acc = 0;
   for (int i = i_start; i < i_end; ++i) {
     for (int j = 0; j < n; ++j) {
       for (int k = 0; k < n; ++k) {
-        acc += (static_cast<std::int64_t>(i) * 31 + j * 17 + k * 13);
+        acc += static_cast<std::int64_t>(i) * 31 +
+               static_cast<std::int64_t>(j) * 17 +
+               static_cast<std::int64_t>(k) * 13;
         acc ^= (acc << 1);
         acc += (acc >> 3);
       }
@@ -25,7 +26,7 @@ static inline std::int64_t DoHeavyWork(int n, int i_start, int i_end) {
   return acc;
 }
 
-static inline std::int64_t LineAllSum(std::int64_t local, int rank, int size, MPI_Comm comm) {
+inline std::int64_t LineAllSum(std::int64_t local, int rank, int size, MPI_Comm comm) {
   std::int64_t partial = local;
 
   if (rank > 0) {
@@ -34,7 +35,7 @@ static inline std::int64_t LineAllSum(std::int64_t local, int rank, int size, MP
     partial += left;
   }
   if (rank < size - 1) {
-    MPI_Send(&partial, 1, MPI_LONG_LONG, rank + 1, 100, comm);
+    MPI_Send(&partial, 1, MPI_INT64_T, rank + 1, 100, comm);
   }
 
   std::int64_t global = 0;
