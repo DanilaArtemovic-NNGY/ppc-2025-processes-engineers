@@ -2,6 +2,7 @@
 
 #include <mpi.h>
 
+#include <algorithm>
 #include <cstdint>
 
 #include "zorin_d_ruler/common/include/common.hpp"
@@ -15,9 +16,8 @@ inline std::int64_t DoHeavyWork(int n, int i_start, int i_end) {
   for (int i = i_start; i < i_end; ++i) {
     for (int j = 0; j < n; ++j) {
       for (int k = 0; k < n; ++k) {
-        acc += static_cast<std::int64_t>(i) * 31 +
-               static_cast<std::int64_t>(j) * 17 +
-               static_cast<std::int64_t>(k) * 13;
+        acc += (static_cast<std::int64_t>(i) * 31) + (static_cast<std::int64_t>(j) * 17) +
+               (static_cast<std::int64_t>(k) * 13);
         acc ^= (acc << 1);
         acc += (acc >> 3);
       }
@@ -31,7 +31,7 @@ inline std::int64_t LineAllSum(std::int64_t local, int rank, int size, MPI_Comm 
 
   if (rank > 0) {
     std::int64_t left = 0;
-    MPI_Recv(&left, 1, MPI_LONG_LONG, rank - 1, 100, comm, MPI_STATUS_IGNORE);
+    MPI_Recv(&left, 1, MPI_INT64_T, rank - 1, 100, comm, MPI_STATUS_IGNORE);
     partial += left;
   }
   if (rank < size - 1) {
@@ -43,10 +43,10 @@ inline std::int64_t LineAllSum(std::int64_t local, int rank, int size, MPI_Comm 
     global = partial;
   }
   if (rank < size - 1) {
-    MPI_Recv(&global, 1, MPI_LONG_LONG, rank + 1, 101, comm, MPI_STATUS_IGNORE);
+    MPI_Recv(&global, 1, MPI_INT64_T, rank + 1, 101, comm, MPI_STATUS_IGNORE);
   }
   if (rank > 0) {
-    MPI_Send(&global, 1, MPI_LONG_LONG, rank - 1, 101, comm);
+    MPI_Send(&global, 1, MPI_INT64_T, rank - 1, 101, comm);
   }
 
   return global;

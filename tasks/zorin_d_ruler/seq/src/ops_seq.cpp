@@ -13,9 +13,8 @@ inline std::int64_t DoHeavyWork(int n) {
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
       for (int k = 0; k < n; ++k) {
-        acc += static_cast<std::int64_t>(i) * 31 +
-               static_cast<std::int64_t>(j) * 17 +
-               static_cast<std::int64_t>(k) * 13;
+        acc += (static_cast<std::int64_t>(i) * 31) + (static_cast<std::int64_t>(j) * 17) +
+               (static_cast<std::int64_t>(k) * 13);
         acc ^= (acc << 1);
         acc += (acc >> 3);
       }
