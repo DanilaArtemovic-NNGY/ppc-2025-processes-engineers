@@ -5,7 +5,6 @@
 #include <string>
 #include <tuple>
 
-#include "modules/util/include/util.hpp"
 #include "util/include/func_test_util.hpp"
 #include "zorin_d_ruler/common/include/common.hpp"
 #include "zorin_d_ruler/mpi/include/ops_mpi.hpp"
