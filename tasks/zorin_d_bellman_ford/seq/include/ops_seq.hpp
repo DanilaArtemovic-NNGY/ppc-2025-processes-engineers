@@ -11,7 +11,7 @@ class ZorinDBellmanFordSEQ : public BaseTask {
     return ppc::task::TypeOfTask::kSEQ;
   }
 
-  explicit ZorinDBellmanFordSEQ(const InType& in);
+  explicit ZorinDBellmanFordSEQ(const InType &in);
 
  private:
   bool ValidationImpl() override;

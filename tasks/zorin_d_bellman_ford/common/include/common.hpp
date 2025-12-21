@@ -13,9 +13,9 @@ namespace zorin_d_bellman_ford {
 
 struct GraphCRS {
   int vertex_count{};
-  std::vector<int> row_ptr;    
-  std::vector<int> col_idx;   
-  std::vector<int> weights;   
+  std::vector<int> row_ptr;
+  std::vector<int> col_idx;
+  std::vector<int> weights;
 };
 
 struct InType {

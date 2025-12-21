@@ -22,9 +22,8 @@ class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, Ou
     input_data_ = MakeInput(kV_, kEdgesPerVertex_, 0);
   }
 
-  bool CheckTestOutputData(OutType& output_data) final {
-    return !output_data.empty() &&
-           output_data.size() == static_cast<std::size_t>(input_data_.g.vertex_count) &&
+  bool CheckTestOutputData(OutType &output_data) final {
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data_.g.vertex_count) &&
            output_data[0] == 0;
   }
 
@@ -34,9 +33,9 @@ class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, Ou
 };
 
 TEST_P(ZorinDBellmanFordPerfTests, RunPerfModes) {
-  const auto& param = GetParam();
+  const auto &param = GetParam();
 
-  const auto& name = std::get<1>(param);
+  const auto &name = std::get<1>(param);
   const auto run_type = std::get<2>(param);
 
 #if defined(_WIN32)
@@ -52,8 +51,7 @@ TEST_P(ZorinDBellmanFordPerfTests, RunPerfModes) {
 }
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, ZorinDBellmanFordMPI, ZorinDBellmanFordSEQ>(
-        PPC_SETTINGS_zorin_d_bellman_ford);
+    ppc::util::MakeAllPerfTasks<InType, ZorinDBellmanFordMPI, ZorinDBellmanFordSEQ>(PPC_SETTINGS_zorin_d_bellman_ford);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 const auto kPerfTestName = ZorinDBellmanFordPerfTests::CustomPerfTestName;

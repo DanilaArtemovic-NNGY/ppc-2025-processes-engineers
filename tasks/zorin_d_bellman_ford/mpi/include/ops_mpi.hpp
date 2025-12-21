@@ -11,7 +11,7 @@ class ZorinDBellmanFordMPI : public BaseTask {
     return ppc::task::TypeOfTask::kMPI;
   }
 
-  explicit ZorinDBellmanFordMPI(const InType& in);
+  explicit ZorinDBellmanFordMPI(const InType &in);
 
  private:
   bool ValidationImpl() override;
