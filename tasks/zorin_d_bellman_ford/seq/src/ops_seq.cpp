@@ -59,7 +59,7 @@ bool ZorinDBellmanFordSEQ::PreProcessingImpl() {
   const int v = GetInput().g.vertex_count;
   auto &dist = GetOutput();
 
-  dist.assign(static_cast<std::size_t>(v), kInf);
+  dist.assign(static_cast<std::size_t>(v), k_inf);
   dist[static_cast<std::size_t>(GetInput().source)] = 0;
 
   return true;
@@ -74,8 +74,8 @@ bool ZorinDBellmanFordSEQ::RunImpl() {
     bool any_update = false;
 
     for (int u = 0; u < V; ++u) {
-      const long long du = dist[static_cast<std::size_t>(u)];
-      if (du >= kInf / 2) {
+      const std::int64_t du = dist[static_cast<std::size_t>(u)];
+      if (du >= k_inf / 2) {
         continue;
       }
 
@@ -84,7 +84,7 @@ bool ZorinDBellmanFordSEQ::RunImpl() {
 
       for (int ei = begin; ei < end; ++ei) {
         const int v = g.col_idx[static_cast<std::size_t>(ei)];
-        const long long cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
+        const std::int64_t cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
         auto &dv = dist[static_cast<std::size_t>(v)];
         if (cand < dv) {
           dv = cand;

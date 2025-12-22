@@ -58,7 +58,7 @@ bool ZorinDBellmanFordMPI::ValidationImpl() {
 
 bool ZorinDBellmanFordMPI::PreProcessingImpl() {
   const int v = GetInput().g.vertex_count;
-  GetOutput().assign(static_cast<std::size_t>(v), kInf);
+  GetOutput().assign(static_cast<std::size_t>(v), k_inf);
   GetOutput()[static_cast<std::size_t>(GetInput().source)] = 0;
   return true;
 }
@@ -72,16 +72,16 @@ bool ZorinDBellmanFordMPI::RunImpl() {
   const auto &g = GetInput().g;
   const int V = g.vertex_count;
 
-  std::vector<long long> dist = GetOutput();
-  std::vector<long long> dist_next(static_cast<std::size_t>(V));
+  std::vector<std::int64_t> dist = GetOutput();
+  std::vector<std::int64_t> dist_next(static_cast<std::size_t>(V));
 
   for (int iter = 0; iter < V - 1; ++iter) {
     dist_next = dist;
     bool local_updated = false;
 
     for (int u = rank; u < V; u += size) {
-      const long long du = dist[static_cast<std::size_t>(u)];
-      if (du >= kInf / 2) {
+      const std::int64_t du = dist[static_cast<std::size_t>(u)];
+      if (du >= k_inf / 2) {
         continue;
       }
 
@@ -90,7 +90,7 @@ bool ZorinDBellmanFordMPI::RunImpl() {
 
       for (int ei = begin; ei < end; ++ei) {
         const int v = g.col_idx[static_cast<std::size_t>(ei)];
-        const long long cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
+        const std::int64_t cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
         auto &dv = dist_next[static_cast<std::size_t>(v)];
         if (cand < dv) {
           dv = cand;
