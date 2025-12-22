@@ -69,49 +69,83 @@ MPI_Comm_size(MPI_COMM_WORLD, &size);
 * `PreProcessingImpl()` - Подготовительные действия перед выполнением основной логики
 * `RunImpl()` - Основной этап вычисления среднего значения
 * `PostProcessingImpl()` - Пост обработка результата
+* `RelaxIteration()` - вспомогательная функция, выполняющая релаксацию рёбер на подмножестве вершин, закреплённых за текущим MPI-процессом
 
 ### 5.3 Реализация методов
 ####  Конструктор
 ```cpp
-ZorinDBellmanFordMPI::ZorinDBellmanFordMPI(const InType& in) {
+ZorinDBellmanFordMPI::ZorinDBellmanFordMPI(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput().clear();
 }
 ```
 ####  Валидация
 ```cpp
 bool ZorinDBellmanFordMPI::ValidationImpl() {
-  const auto& in = GetInput();
-  const auto& g = in.g;
+  const auto &graph = GetInput().graph;
 
-  if (g.vertex_count <= 0) return false;
-  if (in.source < 0 || in.source >= g.vertex_count) return false;
-
-  if (g.row_ptr.size() != static_cast<std::size_t>(g.vertex_count) + 1) return false;
-  if (g.row_ptr.empty() || g.row_ptr.front() != 0) return false;
-
-  if (g.col_idx.size() != g.weights.size()) return false;
-  const int e = static_cast<int>(g.col_idx.size());
-  if (g.row_ptr.back() != e) return false;
-
-  for (std::size_t i = 1; i < g.row_ptr.size(); ++i) {
-    if (g.row_ptr[i] < g.row_ptr[i - 1]) return false;
+  if (graph.vertex_count <= 0) {
+    return false;
   }
-  for (int v : g.col_idx) {
-    if (v < 0 || v >= g.vertex_count) return false;
+  if (GetInput().source < 0 || GetInput().source >= graph.vertex_count) {
+    return false;
   }
 
+  if (graph.row_ptr.size() != static_cast<std::size_t>(graph.vertex_count) + 1) {
+    return false;
+  }
+  if (graph.row_ptr.front() != 0) {
+    return false;
+  }
+  if (graph.col_idx.size() != graph.weights.size()) {
+    return false;
+  }
+  if (graph.row_ptr.back() != static_cast<int>(std::ssize(graph.col_idx))) {
+    return false;
+  }
+
+  if (!std::ranges::all_of(graph.col_idx, [&](int v) { return v >= 0 && v < graph.vertex_count; })) {
+    return false;
+  }
   return true;
+}
+```
+#### Вспомогательная функция
+```cpp
+bool ZorinDBellmanFordMPI::RelaxIteration(int rank, int size, const GraphCrs &graph,
+                                          const std::vector<std::int64_t> &dist, std::vector<std::int64_t> &dist_next) {
+  bool updated = false;
+  const int vertex_count = graph.vertex_count;
+
+  for (int vertex = rank; vertex < vertex_count; vertex += size) {
+    const std::int64_t du = dist[static_cast<std::size_t>(vertex)];
+    if (du >= kInf / 2) {
+      continue;
+    }
+
+    const int begin = graph.row_ptr[static_cast<std::size_t>(vertex)];
+    const int end = graph.row_ptr[static_cast<std::size_t>(vertex) + 1];
+
+    for (int edge = begin; edge < end; ++edge) {
+      const int to = graph.col_idx[static_cast<std::size_t>(edge)];
+      const std::int64_t cand = du + static_cast<std::int64_t>(graph.weights[static_cast<std::size_t>(edge)]);
+      if (cand < dist_next[static_cast<std::size_t>(to)]) {
+        dist_next[static_cast<std::size_t>(to)] = cand;
+        updated = true;
+      }
+    }
+  }
+  return updated;
 }
 ```
 
 #### Предварительная обработка
 ```cpp
 bool ZorinDBellmanFordMPI::PreProcessingImpl() {
-  const int v = GetInput().g.vertex_count;
-  GetOutput().assign(static_cast<std::size_t>(v), kInf);
-  GetOutput()[static_cast<std::size_t>(GetInput().source)] = 0;
+  const int vertex_count = GetInput().graph.vertex_count;
+  auto &dist = GetOutput();
+  dist.assign(static_cast<std::size_t>(vertex_count), kInf);
+  dist[static_cast<std::size_t>(GetInput().source)] = 0;
   return true;
 }
 ```
@@ -119,52 +153,33 @@ bool ZorinDBellmanFordMPI::PreProcessingImpl() {
 #### Основной этап
 ```cpp
 bool ZorinDBellmanFordMPI::RunImpl() {
-  int rank, size;
+  int rank = 0;
+  int size = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  const auto& g = GetInput().g;
-  const int V = g.vertex_count;
+  const auto &graph = GetInput().graph;
+  const int vertex_count = graph.vertex_count;
 
-  std::vector<long long> dist = GetOutput();
-  std::vector<int> active(V, 0), next_active(V, 0);
+  std::vector<std::int64_t> dist = GetOutput();
+  std::vector<std::int64_t> dist_next(dist);
 
-  if (rank == 0) active[GetInput().source] = 1;
-  MPI_Bcast(active.data(), V, MPI_INT, 0, MPI_COMM_WORLD);
+  for (int iter = 0; iter < vertex_count - 1; ++iter) {
+    dist_next = dist;
 
-  for (int iter = 0; iter < V - 1; ++iter) {
-    bool local_updated = false;
+    const bool local_updated = RelaxIteration(rank, size, graph, dist, dist_next);
 
-    for (int u = rank; u < V; u += size) {
-      if (!active[u]) continue;
+    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_LONG, MPI_MIN, MPI_COMM_WORLD);
 
-      const long long du = dist[u];
-      const int begin = g.row_ptr[u];
-      const int end = g.row_ptr[u + 1];
+    int updated = local_updated ? 1 : 0;
+    MPI_Allreduce(MPI_IN_PLACE, &updated, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-      for (int ei = begin; ei < end; ++ei) {
-        const int v = g.col_idx[ei];
-        const long long cand = du + g.weights[ei];
-        if (cand < dist[v]) {
-          dist[v] = cand;
-          next_active[v] = 1;
-          local_updated = true;
-        }
-      }
+    if (updated == 0) {
+      break;
     }
-
-    MPI_Allreduce(MPI_IN_PLACE, dist.data(), V, MPI_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, next_active.data(), V, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
-    int global_updated = local_updated ? 1 : 0;
-    MPI_Allreduce(MPI_IN_PLACE, &global_updated, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    if (!global_updated) break;
-
-    std::swap(active, next_active);
-    std::fill(next_active.begin(), next_active.end(), 0);
   }
 
-  GetOutput() = dist;
+  GetOutput() = std::move(dist);
   return true;
 }
 ```
@@ -255,64 +270,62 @@ MPI-реализация распределяет вычисления межд�
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <string>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 #include "task/include/task.hpp"
 
 namespace zorin_d_bellman_ford {
 
-struct GraphCRS {
+struct GraphCrs {
   int vertex_count{};
-  std::vector<int> row_ptr;    
-  std::vector<int> col_idx;   
-  std::vector<int> weights;   
+  std::vector<int> row_ptr;
+  std::vector<int> col_idx;
+  std::vector<int> weights;
 };
 
 struct InType {
-  GraphCRS g;
+  GraphCrs graph;
   int source{};
 };
 
-using OutType = std::vector<long long>;
+using OutType = std::vector<std::int64_t>;
 using TestType = std::tuple<int, std::string>;
 using BaseTask = ppc::task::Task<InType, OutType>;
 
-constexpr long long kInf = std::numeric_limits<long long>::max() / 4;
+constexpr std::int64_t kInf = std::numeric_limits<std::int64_t>::max() / 4;
 
-inline GraphCRS MakeGraphCRS_Deterministic(int v, int edges_per_vertex) {
-  GraphCRS gr;
-  gr.vertex_count = v;
-  gr.row_ptr.resize(static_cast<std::size_t>(v) + 1, 0);
+inline GraphCrs MakeGraphCrsDeterministic(int vertex_count, int edges_per_vertex) {
+  GraphCrs graph;
+  graph.vertex_count = vertex_count;
+  graph.row_ptr.resize(static_cast<std::size_t>(vertex_count) + 1, 0);
 
-  const int e_per_v = (edges_per_vertex <= 0) ? 1 : edges_per_vertex;
+  const int edges = edges_per_vertex > 0 ? edges_per_vertex : 1;
+  const std::size_t total_edges = static_cast<std::size_t>(vertex_count) * static_cast<std::size_t>(edges);
 
-  gr.col_idx.reserve(static_cast<std::size_t>(v) * static_cast<std::size_t>(e_per_v));
-  gr.weights.reserve(static_cast<std::size_t>(v) * static_cast<std::size_t>(e_per_v));
+  graph.col_idx.reserve(total_edges);
+  graph.weights.reserve(total_edges);
 
   int edge_pos = 0;
-  for (int u = 0; u < v; ++u) {
-    gr.row_ptr[static_cast<std::size_t>(u)] = edge_pos;
-    for (int k = 1; k <= e_per_v; ++k) {
-      const int to = (u + k) % v;
-      const int w = 1 + ((u * 31 + to * 17 + k * 13) % 20);  // 1..20
-      gr.col_idx.push_back(to);
-      gr.weights.push_back(w);
+  for (int vertex = 0; vertex < vertex_count; ++vertex) {
+    graph.row_ptr[static_cast<std::size_t>(vertex)] = edge_pos;
+    for (int k = 1; k <= edges; ++k) {
+      const int to = (vertex + k) % vertex_count;
+      const int weight = 1 + ((vertex * 31 + to * 17 + k * 13) % 20);
+      graph.col_idx.push_back(to);
+      graph.weights.push_back(weight);
       ++edge_pos;
     }
   }
-  gr.row_ptr[static_cast<std::size_t>(v)] = edge_pos;
-  return gr;
+  graph.row_ptr[static_cast<std::size_t>(vertex_count)] = edge_pos;
+  return graph;
 }
 
-inline InType MakeInput(int v, int edges_per_vertex, int source) {
-  InType in;
-  in.g = MakeGraphCRS_Deterministic(v, edges_per_vertex);
-  in.source = source;
-  return in;
+inline InType MakeInput(int vertex_count, int edges_per_vertex, int source) {
+  return InType{.graph = MakeGraphCrsDeterministic(vertex_count, edges_per_vertex), .source = source};
 }
 
 }  // namespace zorin_d_bellman_ford
@@ -322,6 +335,9 @@ inline InType MakeInput(int v, int edges_per_vertex, int source) {
 ### `ops_mpi.hpp`
 ```cpp
 #pragma once
+
+#include <cstdint>
+#include <vector>
 
 #include "task/include/task.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"
@@ -334,13 +350,15 @@ class ZorinDBellmanFordMPI : public BaseTask {
     return ppc::task::TypeOfTask::kMPI;
   }
 
-  explicit ZorinDBellmanFordMPI(const InType& in);
+  explicit ZorinDBellmanFordMPI(const InType &in);
 
  private:
   bool ValidationImpl() override;
   bool PreProcessingImpl() override;
   bool RunImpl() override;
   bool PostProcessingImpl() override;
+  static bool RelaxIteration(int rank, int size, const GraphCrs &graph, const std::vector<std::int64_t> &dist,
+                             std::vector<std::int64_t> &dist_next);
 };
 
 }  // namespace zorin_d_bellman_ford
@@ -355,47 +373,80 @@ class ZorinDBellmanFordMPI : public BaseTask {
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "zorin_d_bellman_ford/common/include/common.hpp"
 
 namespace zorin_d_bellman_ford {
 
-ZorinDBellmanFordMPI::ZorinDBellmanFordMPI(const InType& in) {
+ZorinDBellmanFordMPI::ZorinDBellmanFordMPI(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput().clear();
 }
 
 bool ZorinDBellmanFordMPI::ValidationImpl() {
-  const auto& in = GetInput();
-  const auto& g = in.g;
+  const auto &graph = GetInput().graph;
 
-  if (g.vertex_count <= 0) return false;
-  if (in.source < 0 || in.source >= g.vertex_count) return false;
-
-  if (g.row_ptr.size() != static_cast<std::size_t>(g.vertex_count) + 1) return false;
-  if (g.row_ptr.empty() || g.row_ptr.front() != 0) return false;
-
-  if (g.col_idx.size() != g.weights.size()) return false;
-  const int e = static_cast<int>(g.col_idx.size());
-  if (g.row_ptr.back() != e) return false;
-
-  for (std::size_t i = 1; i < g.row_ptr.size(); ++i) {
-    if (g.row_ptr[i] < g.row_ptr[i - 1]) return false;
+  if (graph.vertex_count <= 0) {
+    return false;
   }
-  for (int v : g.col_idx) {
-    if (v < 0 || v >= g.vertex_count) return false;
+  if (GetInput().source < 0 || GetInput().source >= graph.vertex_count) {
+    return false;
   }
 
+  if (graph.row_ptr.size() != static_cast<std::size_t>(graph.vertex_count) + 1) {
+    return false;
+  }
+  if (graph.row_ptr.front() != 0) {
+    return false;
+  }
+  if (graph.col_idx.size() != graph.weights.size()) {
+    return false;
+  }
+  if (graph.row_ptr.back() != static_cast<int>(std::ssize(graph.col_idx))) {
+    return false;
+  }
+
+  if (!std::ranges::all_of(graph.col_idx, [&](int v) { return v >= 0 && v < graph.vertex_count; })) {
+    return false;
+  }
   return true;
 }
 
 bool ZorinDBellmanFordMPI::PreProcessingImpl() {
-  const int v = GetInput().g.vertex_count;
-  GetOutput().assign(static_cast<std::size_t>(v), kInf);
-  GetOutput()[static_cast<std::size_t>(GetInput().source)] = 0;
+  const int vertex_count = GetInput().graph.vertex_count;
+  auto &dist = GetOutput();
+  dist.assign(static_cast<std::size_t>(vertex_count), kInf);
+  dist[static_cast<std::size_t>(GetInput().source)] = 0;
   return true;
+}
+
+bool ZorinDBellmanFordMPI::RelaxIteration(int rank, int size, const GraphCrs &graph,
+                                          const std::vector<std::int64_t> &dist, std::vector<std::int64_t> &dist_next) {
+  bool updated = false;
+  const int vertex_count = graph.vertex_count;
+
+  for (int vertex = rank; vertex < vertex_count; vertex += size) {
+    const std::int64_t du = dist[static_cast<std::size_t>(vertex)];
+    if (du >= kInf / 2) {
+      continue;
+    }
+
+    const int begin = graph.row_ptr[static_cast<std::size_t>(vertex)];
+    const int end = graph.row_ptr[static_cast<std::size_t>(vertex) + 1];
+
+    for (int edge = begin; edge < end; ++edge) {
+      const int to = graph.col_idx[static_cast<std::size_t>(edge)];
+      const std::int64_t cand = du + static_cast<std::int64_t>(graph.weights[static_cast<std::size_t>(edge)]);
+      if (cand < dist_next[static_cast<std::size_t>(to)]) {
+        dist_next[static_cast<std::size_t>(to)] = cand;
+        updated = true;
+      }
+    }
+  }
+  return updated;
 }
 
 bool ZorinDBellmanFordMPI::RunImpl() {
@@ -404,45 +455,30 @@ bool ZorinDBellmanFordMPI::RunImpl() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  const auto& g = GetInput().g;
-  const int V = g.vertex_count;
+  const auto &graph = GetInput().graph;
+  const int vertex_count = graph.vertex_count;
 
-  std::vector<long long> dist = GetOutput();
-  std::vector<long long> dist_next(static_cast<std::size_t>(V));
+  std::vector<std::int64_t> dist = GetOutput();
+  std::vector<std::int64_t> dist_next(dist);
 
-  for (int iter = 0; iter < V - 1; ++iter) {
+  for (int iter = 0; iter < vertex_count - 1; ++iter) {
     dist_next = dist;
-    bool local_updated = false;
 
-    for (int u = rank; u < V; u += size) {
-      const long long du = dist[static_cast<std::size_t>(u)];
-      if (du >= kInf / 2) continue;
+    const bool local_updated = RelaxIteration(rank, size, graph, dist, dist_next);
 
-      const int begin = g.row_ptr[static_cast<std::size_t>(u)];
-      const int end   = g.row_ptr[static_cast<std::size_t>(u + 1)];
+    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_LONG, MPI_MIN, MPI_COMM_WORLD);
 
-      for (int ei = begin; ei < end; ++ei) {
-        const int v = g.col_idx[static_cast<std::size_t>(ei)];
-        const long long cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
-        auto& dv = dist_next[static_cast<std::size_t>(v)];
-        if (cand < dv) {
-          dv = cand;
-          local_updated = true;
-        }
-      }
+    int updated = local_updated ? 1 : 0;
+    MPI_Allreduce(MPI_IN_PLACE, &updated, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+    if (updated == 0) {
+      break;
     }
-
-    MPI_Allreduce(dist_next.data(), dist.data(), V, MPI_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
-
-    int upd = local_updated ? 1 : 0;
-    MPI_Allreduce(MPI_IN_PLACE, &upd, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    if (upd == 0) break;
   }
 
   GetOutput() = std::move(dist);
   return true;
 }
-
 
 bool ZorinDBellmanFordMPI::PostProcessingImpl() {
   return !GetOutput().empty();
@@ -467,7 +503,7 @@ class ZorinDBellmanFordSEQ : public BaseTask {
     return ppc::task::TypeOfTask::kSEQ;
   }
 
-  explicit ZorinDBellmanFordSEQ(const InType& in);
+  explicit ZorinDBellmanFordSEQ(const InType &in);
 
  private:
   bool ValidationImpl() override;
@@ -477,99 +513,91 @@ class ZorinDBellmanFordSEQ : public BaseTask {
 };
 
 }  // namespace zorin_d_bellman_ford
+
 ```
 
 ### `ops_seq.cpp`
 ```cpp
 #include "zorin_d_bellman_ford/seq/include/ops_seq.hpp"
 
-#include <algorithm>
 #include <cstddef>
-#include <limits>
+#include <cstdint>
 
 #include "zorin_d_bellman_ford/common/include/common.hpp"
 
 namespace zorin_d_bellman_ford {
 
-ZorinDBellmanFordSEQ::ZorinDBellmanFordSEQ(const InType& in) {
+ZorinDBellmanFordSEQ::ZorinDBellmanFordSEQ(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput().clear();
 }
 
 bool ZorinDBellmanFordSEQ::ValidationImpl() {
-  const auto& in = GetInput();
-  const auto& g = in.g;
+  const auto &graph = GetInput().graph;
 
-  if (g.vertex_count <= 0) return false;
-  if (in.source < 0 || in.source >= g.vertex_count) return false;
-
-  if (g.row_ptr.size() != static_cast<std::size_t>(g.vertex_count) + 1) return false;
-  if (g.row_ptr.empty() || g.row_ptr.front() != 0) return false;
-
-  if (g.col_idx.size() != g.weights.size()) return false;
-  const int edges = static_cast<int>(g.col_idx.size());
-  if (g.row_ptr.back() != edges) return false;
-
-  for (std::size_t i = 1; i < g.row_ptr.size(); ++i) {
-    if (g.row_ptr[i] < g.row_ptr[i - 1]) return false;
+  if (graph.vertex_count <= 0) {
+    return false;
+  }
+  if (GetInput().source < 0 || GetInput().source >= graph.vertex_count) {
+    return false;
   }
 
-  for (int v : g.col_idx) {
-    if (v < 0 || v >= g.vertex_count) return false;
+  if (graph.row_ptr.size() != static_cast<std::size_t>(graph.vertex_count) + 1) {
+    return false;
   }
-
+  if (graph.col_idx.size() != graph.weights.size()) {
+    return false;
+  }
   return true;
 }
 
 bool ZorinDBellmanFordSEQ::PreProcessingImpl() {
-  const int v = GetInput().g.vertex_count;
-  auto& dist = GetOutput();
-
-  dist.assign(static_cast<std::size_t>(v), kInf);
+  const int vertex_count = GetInput().graph.vertex_count;
+  auto &dist = GetOutput();
+  dist.assign(static_cast<std::size_t>(vertex_count), kInf);
   dist[static_cast<std::size_t>(GetInput().source)] = 0;
-
   return true;
 }
 
 bool ZorinDBellmanFordSEQ::RunImpl() {
-  const auto& g = GetInput().g;
-  const int V = g.vertex_count;
-  auto& dist = GetOutput();
+  const auto &graph = GetInput().graph;
+  const int vertex_count = graph.vertex_count;
+  auto &dist = GetOutput();
 
-  for (int iter = 0; iter < V - 1; ++iter) {
-    bool any_update = false;
+  for (int iter = 0; iter < vertex_count - 1; ++iter) {
+    bool updated = false;
 
-    for (int u = 0; u < V; ++u) {
-      const long long du = dist[static_cast<std::size_t>(u)];
-      if (du >= kInf / 2) continue;
+    for (int vertex = 0; vertex < vertex_count; ++vertex) {
+      const std::int64_t du = dist[static_cast<std::size_t>(vertex)];
+      if (du >= kInf / 2) {
+        continue;
+      }
 
-      const int begin = g.row_ptr[static_cast<std::size_t>(u)];
-      const int end   = g.row_ptr[static_cast<std::size_t>(u + 1)];
+      const int begin = graph.row_ptr[static_cast<std::size_t>(vertex)];
+      const int end = graph.row_ptr[static_cast<std::size_t>(vertex) + 1];
 
-      for (int ei = begin; ei < end; ++ei) {
-        const int v = g.col_idx[static_cast<std::size_t>(ei)];
-        const long long cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
-        auto& dv = dist[static_cast<std::size_t>(v)];
-        if (cand < dv) {
-          dv = cand;
-          any_update = true;
+      for (int edge = begin; edge < end; ++edge) {
+        const int to = graph.col_idx[static_cast<std::size_t>(edge)];
+        const std::int64_t cand = du + static_cast<std::int64_t>(graph.weights[static_cast<std::size_t>(edge)]);
+        if (cand < dist[static_cast<std::size_t>(to)]) {
+          dist[static_cast<std::size_t>(to)] = cand;
+          updated = true;
         }
       }
     }
-
-    if (!any_update) break;
+    if (!updated) {
+      break;
+    }
   }
-
   return true;
 }
-
 
 bool ZorinDBellmanFordSEQ::PostProcessingImpl() {
   return !GetOutput().empty();
 }
 
 }  // namespace zorin_d_bellman_ford
+
 
 ```
 
@@ -581,9 +609,9 @@ bool ZorinDBellmanFordSEQ::PostProcessingImpl() {
 #include <cstddef>
 #include <string>
 #include <tuple>
-#include <vector>
 
 #include "util/include/func_test_util.hpp"
+#include "util/include/util.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"
 #include "zorin_d_bellman_ford/mpi/include/ops_mpi.hpp"
 #include "zorin_d_bellman_ford/seq/include/ops_seq.hpp"
@@ -592,20 +620,20 @@ namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
-  static std::string PrintTestParam(const TestType& test_param) {
+  static std::string PrintTestParam(const TestType &test_param) {
     return std::to_string(std::get<0>(test_param)) + "_" + std::get<1>(test_param);
   }
 
  protected:
   void SetUp() override {
-    const auto& test_param = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
+    const auto &test_param = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
     const int v = std::get<0>(test_param);
 
     input_data_ = MakeInput(v, 3, 0);
   }
 
-  bool CheckTestOutputData(OutType& output_data) final {
-    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data_.g.vertex_count) &&
+  bool CheckTestOutputData(OutType &output_data) final {
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data_.graph.vertex_count) &&
            output_data[0] == 0;
   }
 
@@ -650,8 +678,6 @@ INSTANTIATE_TEST_SUITE_P(BellmanFordTests, ZorinDBellmanFordFuncTests, kGtestVal
 #include <gtest/gtest.h>
 
 #include <cstddef>
-#include <string>
-#include <string_view>
 
 #include "util/include/perf_test_util.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"
@@ -662,47 +688,31 @@ namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
-  const int kV_ = 8000;
-  const int kEdgesPerVertex_ = 8;
+  const int k_v = 8000;
+  const int k_edges_per_vertex = 8;
 
-  InType input_data_{};
+  InType input_data{};
 
   void SetUp() override {
-    input_data_ = MakeInput(kV_, kEdgesPerVertex_, 0);
+    input_data = MakeInput(k_v, k_edges_per_vertex, 0);
   }
 
-  bool CheckTestOutputData(OutType& output_data) final {
-    return !output_data.empty() &&
-           output_data.size() == static_cast<std::size_t>(input_data_.g.vertex_count) &&
+  bool CheckTestOutputData(OutType &output_data) final {
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data.graph.vertex_count) &&
            output_data[0] == 0;
   }
 
   InType GetTestInputData() final {
-    return input_data_;
+    return input_data;
   }
 };
 
 TEST_P(ZorinDBellmanFordPerfTests, RunPerfModes) {
-  const auto& param = GetParam();
-
-  const auto& name = std::get<1>(param);
-  const auto run_type = std::get<2>(param);
-
-#if defined(_WIN32)
-  // На Windows pipeline для SEQ в PPC может давать неадекватные замеры/таймауты. Больше 300 секунд. Поэтому скип
-  std::string_view name_sv{name};
-  if (name_sv.find("_seq_") != std::string_view::npos &&
-      run_type == ppc::performance::PerfResults::TypeOfRunning::kPipeline) {
-    GTEST_SKIP() << "Skip SEQ pipeline on Windows";
-  }
-#endif
-
-  ExecuteTest(param);
+  ExecuteTest(GetParam());
 }
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, ZorinDBellmanFordMPI, ZorinDBellmanFordSEQ>(
-        PPC_SETTINGS_zorin_d_bellman_ford);
+    ppc::util::MakeAllPerfTasks<InType, ZorinDBellmanFordMPI, ZorinDBellmanFordSEQ>(PPC_SETTINGS_zorin_d_bellman_ford);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 const auto kPerfTestName = ZorinDBellmanFordPerfTests::CustomPerfTestName;
