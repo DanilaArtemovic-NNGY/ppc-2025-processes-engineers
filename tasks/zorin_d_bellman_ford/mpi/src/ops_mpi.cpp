@@ -2,8 +2,10 @@
 
 #include <mpi.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -39,10 +41,8 @@ bool ZorinDBellmanFordMPI::ValidationImpl() {
     return false;
   }
 
-  for (int vertex : graph.col_idx) {
-    if (vertex < 0 || vertex >= graph.vertex_count) {
-      return false;
-    }
+  if (!std::ranges::all_of(graph.col_idx, [&](int v) { return v >= 0 && v < graph.vertex_count; })) {
+    return false;
   }
   return true;
 }
@@ -98,7 +98,7 @@ bool ZorinDBellmanFordMPI::RunImpl() {
 
     const bool local_updated = RelaxIteration(rank, size, graph, dist, dist_next);
 
-    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_INT64_T, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_LONG, MPI_MIN, MPI_COMM_WORLD);
 
     int updated = local_updated ? 1 : 0;
     MPI_Allreduce(MPI_IN_PLACE, &updated, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
