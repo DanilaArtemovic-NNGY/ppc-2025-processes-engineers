@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
-#include <string>
-#include <string_view>
 
 #include "util/include/perf_test_util.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"
@@ -13,8 +11,8 @@ namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
-  const int kV_ = 8000;
-  const int kEdgesPerVertex_ = 8;
+  const int kV_ = 20000;
+  const int kEdgesPerVertex_ = 64;
 
   InType input_data_{};
 
@@ -34,19 +32,6 @@ class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, Ou
 
 TEST_P(ZorinDBellmanFordPerfTests, RunPerfModes) {
   const auto &param = GetParam();
-
-  const auto &name = std::get<1>(param);
-  const auto run_type = std::get<2>(param);
-
-#if defined(_WIN32)
-  // На Windows pipeline для SEQ в PPC может давать неадекватные замеры/таймауты. Больше 300 секунд. Поэтому скип
-  std::string_view name_sv{name};
-  if (name_sv.find("_seq_") != std::string_view::npos &&
-      run_type == ppc::performance::PerfResults::TypeOfRunning::kPipeline) {
-    GTEST_SKIP() << "Skip SEQ pipeline on Windows";
-  }
-#endif
-
   ExecuteTest(param);
 }
 
