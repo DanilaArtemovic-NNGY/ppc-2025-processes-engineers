@@ -56,9 +56,14 @@ const std::array<TestType, 3> kTestParam = {
     std::make_tuple(100, "v100"),
 };
 
-const auto kTestTasksList =
-    std::tuple_cat(ppc::util::AddFuncTask<ZorinDBellmanFordMPI, InType>(kTestParam, PPC_SETTINGS_zorin_d_bellman_ford),
-                   ppc::util::AddFuncTask<ZorinDBellmanFordSEQ, InType>(kTestParam, PPC_SETTINGS_zorin_d_bellman_ford));
+const auto kTestTasksList = std::tuple_cat(
+    // NOLINTNEXTLINE(performance-unnecessary-value-param)
+    // clang-tidy: ложное срабатывание в modules/task,
+    // InType передаётся по значению внутри шаблона TaskGetter
+    ppc::util::AddFuncTask<ZorinDBellmanFordMPI, InType>(kTestParam, PPC_SETTINGS_zorin_d_bellman_ford),
+
+    // NOLINTNEXTLINE(performance-unnecessary-value-param)
+    ppc::util::AddFuncTask<ZorinDBellmanFordSEQ, InType>(kTestParam, PPC_SETTINGS_zorin_d_bellman_ford));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 

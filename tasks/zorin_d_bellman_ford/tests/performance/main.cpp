@@ -39,6 +39,9 @@ TEST_P(ZorinDBellmanFordPerfTests, RunPerfModes) {
   ExecuteTest(param);
 }
 
+// NOLINTNEXTLINE(performance-unnecessary-value-param)
+// clang-tidy: ложное срабатывание в modules/task,
+// параметр InType передаётся по значению, изменить сигнатуру невозможно
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, ZorinDBellmanFordMPI, ZorinDBellmanFordSEQ>(PPC_SETTINGS_zorin_d_bellman_ford);
 
