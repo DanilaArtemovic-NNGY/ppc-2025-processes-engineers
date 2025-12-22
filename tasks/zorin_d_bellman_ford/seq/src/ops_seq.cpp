@@ -1,103 +1,71 @@
 #include "zorin_d_bellman_ford/seq/include/ops_seq.hpp"
 
-#include <algorithm>
-#include <cstddef>
-#include <limits>
-
-#include "zorin_d_bellman_ford/common/include/common.hpp"
+#include <cstdint>
 
 namespace zorin_d_bellman_ford {
 
 ZorinDBellmanFordSEQ::ZorinDBellmanFordSEQ(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput().clear();
 }
 
 bool ZorinDBellmanFordSEQ::ValidationImpl() {
-  const auto &in = GetInput();
-  const auto &g = in.g;
+  const auto &graph = GetInput().graph;
 
-  if (g.vertex_count <= 0) {
+  if (graph.vertex_count <= 0) {
     return false;
   }
-  if (in.source < 0 || in.source >= g.vertex_count) {
-    return false;
-  }
-
-  if (g.row_ptr.size() != static_cast<std::size_t>(g.vertex_count) + 1) {
-    return false;
-  }
-  if (g.row_ptr.empty() || g.row_ptr.front() != 0) {
+  if (GetInput().source < 0 || GetInput().source >= graph.vertex_count) {
     return false;
   }
 
-  if (g.col_idx.size() != g.weights.size()) {
+  if (graph.row_ptr.size() != static_cast<std::size_t>(graph.vertex_count + 1)) {
     return false;
   }
-  const int edges = static_cast<int>(g.col_idx.size());
-  if (g.row_ptr.back() != edges) {
+  if (graph.col_idx.size() != graph.weights.size()) {
     return false;
   }
-
-  for (std::size_t i = 1; i < g.row_ptr.size(); ++i) {
-    if (g.row_ptr[i] < g.row_ptr[i - 1]) {
-      return false;
-    }
-  }
-
-  for (int vertex : g.col_idx) {
-    if (vertex < 0 || vertex >= g.vertex_count) {
-      return false;
-    }
-  }
-
   return true;
 }
 
 bool ZorinDBellmanFordSEQ::PreProcessingImpl() {
-  const int v = GetInput().g.vertex_count;
+  const int vertex_count = GetInput().graph.vertex_count;
   auto &dist = GetOutput();
-
-  dist.assign(static_cast<std::size_t>(v), k_inf);
+  dist.assign(static_cast<std::size_t>(vertex_count), kInf);
   dist[static_cast<std::size_t>(GetInput().source)] = 0;
-
   return true;
 }
 
 bool ZorinDBellmanFordSEQ::RunImpl() {
-  const auto &g = GetInput().g;
-  const int V = g.vertex_count;
+  const auto &graph = GetInput().graph;
+  const int vertex_count = graph.vertex_count;
   auto &dist = GetOutput();
 
-  for (int iter = 0; iter < V - 1; ++iter) {
-    bool any_update = false;
+  for (int iter = 0; iter < vertex_count - 1; ++iter) {
+    bool updated = false;
 
-    for (int u = 0; u < V; ++u) {
-      const std::int64_t du = dist[static_cast<std::size_t>(u)];
-      if (du >= k_inf / 2) {
+    for (int vertex = 0; vertex < vertex_count; ++vertex) {
+      const std::int64_t du = dist[static_cast<std::size_t>(vertex)];
+      if (du >= kInf / 2) {
         continue;
       }
 
-      const int begin = g.row_ptr[static_cast<std::size_t>(u)];
-      const int end = g.row_ptr[static_cast<std::size_t>(u + 1)];
+      const int begin = graph.row_ptr[static_cast<std::size_t>(vertex)];
+      const int end = graph.row_ptr[static_cast<std::size_t>(vertex + 1)];
 
-      for (int ei = begin; ei < end; ++ei) {
-        const int v = g.col_idx[static_cast<std::size_t>(ei)];
-        const std::int64_t cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
-        auto &dv = dist[static_cast<std::size_t>(v)];
-        if (cand < dv) {
-          dv = cand;
-          any_update = true;
+      for (int edge = begin; edge < end; ++edge) {
+        const int to = graph.col_idx[static_cast<std::size_t>(edge)];
+        const std::int64_t cand = du + static_cast<std::int64_t>(graph.weights[static_cast<std::size_t>(edge)]);
+        if (cand < dist[static_cast<std::size_t>(to)]) {
+          dist[static_cast<std::size_t>(to)] = cand;
+          updated = true;
         }
       }
     }
-
-    if (!any_update) {
+    if (!updated) {
       break;
     }
   }
-
   return true;
 }
 

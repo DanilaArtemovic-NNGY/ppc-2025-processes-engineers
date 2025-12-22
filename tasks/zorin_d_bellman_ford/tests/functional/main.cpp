@@ -27,7 +27,7 @@ class ZorinDBellmanFordFuncTests : public ppc::util::BaseRunFuncTests<InType, Ou
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data_.g.vertex_count) &&
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data_.graph.vertex_count) &&
            output_data[0] == 0;
   }
 

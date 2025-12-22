@@ -2,65 +2,80 @@
 
 #include <mpi.h>
 
-#include <algorithm>
-#include <cstddef>
-#include <vector>
-
-#include "zorin_d_bellman_ford/common/include/common.hpp"
+#include <cstdint>
+#include <utility>
 
 namespace zorin_d_bellman_ford {
 
 ZorinDBellmanFordMPI::ZorinDBellmanFordMPI(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput().clear();
 }
 
 bool ZorinDBellmanFordMPI::ValidationImpl() {
-  const auto &in = GetInput();
-  const auto &g = in.g;
+  const auto &graph = GetInput().graph;
 
-  if (g.vertex_count <= 0) {
+  if (graph.vertex_count <= 0) {
     return false;
   }
-  if (in.source < 0 || in.source >= g.vertex_count) {
-    return false;
-  }
-
-  if (g.row_ptr.size() != static_cast<std::size_t>(g.vertex_count) + 1) {
-    return false;
-  }
-  if (g.row_ptr.empty() || g.row_ptr.front() != 0) {
+  if (GetInput().source < 0 || GetInput().source >= graph.vertex_count) {
     return false;
   }
 
-  if (g.col_idx.size() != g.weights.size()) {
+  if (graph.row_ptr.size() != static_cast<std::size_t>(graph.vertex_count + 1)) {
     return false;
   }
-  const int e = static_cast<int>(g.col_idx.size());
-  if (g.row_ptr.back() != e) {
+  if (graph.row_ptr.front() != 0) {
+    return false;
+  }
+  if (graph.col_idx.size() != graph.weights.size()) {
+    return false;
+  }
+  if (graph.row_ptr.back() != static_cast<int>(graph.col_idx.size())) {
     return false;
   }
 
-  for (std::size_t i = 1; i < g.row_ptr.size(); ++i) {
-    if (g.row_ptr[i] < g.row_ptr[i - 1]) {
+  for (int vertex : graph.col_idx) {
+    if (vertex < 0 || vertex >= graph.vertex_count) {
       return false;
     }
   }
-  for (int vertex : g.col_idx) {
-    if (vertex < 0 || vertex >= g.vertex_count) {
-      return false;
-    }
-  }
-
   return true;
 }
 
 bool ZorinDBellmanFordMPI::PreProcessingImpl() {
-  const int v = GetInput().g.vertex_count;
-  GetOutput().assign(static_cast<std::size_t>(v), k_inf);
-  GetOutput()[static_cast<std::size_t>(GetInput().source)] = 0;
+  const int vertex_count = GetInput().graph.vertex_count;
+  auto &dist = GetOutput();
+  dist.assign(static_cast<std::size_t>(vertex_count), kInf);
+  dist[static_cast<std::size_t>(GetInput().source)] = 0;
   return true;
+}
+
+bool ZorinDBellmanFordMPI::RelaxIteration(int rank, int size, const GraphCrs &graph,
+                                          const std::vector<std::int64_t> &dist,
+                                          std::vector<std::int64_t> &dist_next) const {
+  bool updated = false;
+  const int vertex_count = graph.vertex_count;
+
+  for (int vertex = rank; vertex < vertex_count; vertex += size) {
+    const std::int64_t du = dist[static_cast<std::size_t>(vertex)];
+    if (du >= kInf / 2) {
+      continue;
+    }
+
+    const int begin = graph.row_ptr[static_cast<std::size_t>(vertex)];
+    const int end = graph.row_ptr[static_cast<std::size_t>(vertex + 1)];
+
+    for (int edge = begin; edge < end; ++edge) {
+      const int to = graph.col_idx[static_cast<std::size_t>(edge)];
+      const std::int64_t cand = du + static_cast<std::int64_t>(graph.weights[static_cast<std::size_t>(edge)]);
+      if (cand < dist_next[static_cast<std::size_t>(to)]) {
+        dist_next[static_cast<std::size_t>(to)] = cand;
+        updated = true;
+      }
+    }
+  }
+  return updated;
 }
 
 bool ZorinDBellmanFordMPI::RunImpl() {
@@ -69,41 +84,23 @@ bool ZorinDBellmanFordMPI::RunImpl() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  const auto &g = GetInput().g;
-  const int V = g.vertex_count;
+  const auto &graph = GetInput().graph;
+  const int vertex_count = graph.vertex_count;
 
   std::vector<std::int64_t> dist = GetOutput();
-  std::vector<std::int64_t> dist_next(static_cast<std::size_t>(V));
+  std::vector<std::int64_t> dist_next(dist);
 
-  for (int iter = 0; iter < V - 1; ++iter) {
+  for (int iter = 0; iter < vertex_count - 1; ++iter) {
     dist_next = dist;
-    bool local_updated = false;
 
-    for (int u = rank; u < V; u += size) {
-      const std::int64_t du = dist[static_cast<std::size_t>(u)];
-      if (du >= k_inf / 2) {
-        continue;
-      }
+    const bool local_updated = RelaxIteration(rank, size, graph, dist, dist_next);
 
-      const int begin = g.row_ptr[static_cast<std::size_t>(u)];
-      const int end = g.row_ptr[static_cast<std::size_t>(u + 1)];
+    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_INT64_T, MPI_MIN, MPI_COMM_WORLD);
 
-      for (int ei = begin; ei < end; ++ei) {
-        const int v = g.col_idx[static_cast<std::size_t>(ei)];
-        const std::int64_t cand = du + static_cast<long long>(g.weights[static_cast<std::size_t>(ei)]);
-        auto &dv = dist_next[static_cast<std::size_t>(v)];
-        if (cand < dv) {
-          dv = cand;
-          local_updated = true;
-        }
-      }
-    }
+    int updated = local_updated ? 1 : 0;
+    MPI_Allreduce(MPI_IN_PLACE, &updated, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-    MPI_Allreduce(dist_next.data(), dist.data(), V, MPI_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
-
-    int upd = local_updated ? 1 : 0;
-    MPI_Allreduce(MPI_IN_PLACE, &upd, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    if (upd == 0) {
+    if (updated == 0) {
       break;
     }
   }

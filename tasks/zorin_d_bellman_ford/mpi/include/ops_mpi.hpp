@@ -18,6 +18,8 @@ class ZorinDBellmanFordMPI : public BaseTask {
   bool PreProcessingImpl() override;
   bool RunImpl() override;
   bool PostProcessingImpl() override;
+  bool RelaxIteration(int rank, int size, const GraphCrs &graph, const std::vector<std::int64_t> &dist,
+                      std::vector<std::int64_t> &dist_next) const;
 };
 
 }  // namespace zorin_d_bellman_ford
