@@ -17,16 +17,16 @@ class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, Ou
   InType inputData{};
 
   void SetUp() override {
-    input_data_ = MakeInput(vertex_count, edges_per_vertex, 0);
+    inputData = MakeInput(vertex_count, edges_per_vertex, 0);
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data_.graph.vertex_count) &&
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(inputData.graph.vertex_count) &&
            output_data[0] == 0;
   }
 
   InType GetTestInputData() final {
-    return input_data_;
+    return inputData;
   }
 };
 
