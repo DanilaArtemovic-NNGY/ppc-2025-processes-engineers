@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <string>
 #include <tuple>
-#include <vector>
 
 #include "util/include/func_test_util.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"

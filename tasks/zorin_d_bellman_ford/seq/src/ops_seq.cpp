@@ -46,8 +46,8 @@ bool ZorinDBellmanFordSEQ::ValidationImpl() {
     }
   }
 
-  for (int v : g.col_idx) {
-    if (v < 0 || v >= g.vertex_count) {
+  for (int vertex : g.col_idx) {
+    if (vertex < 0 || vertex >= g.vertex_count) {
       return false;
     }
   }

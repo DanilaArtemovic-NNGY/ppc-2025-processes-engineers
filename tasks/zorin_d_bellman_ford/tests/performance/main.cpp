@@ -11,13 +11,13 @@ namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
-  const int kV_ = 20000;
-  const int kEdgesPerVertex_ = 64;
+  const int vertex_count = 20000;
+  const int edges_per_vertex = 64;
 
   InType input_data_{};
 
   void SetUp() override {
-    input_data_ = MakeInput(kV_, kEdgesPerVertex_, 0);
+    input_data_ = MakeInput(vertex_count, edges_per_vertex, 0);
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
