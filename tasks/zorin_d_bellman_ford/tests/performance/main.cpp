@@ -7,6 +7,10 @@
 #include "zorin_d_bellman_ford/mpi/include/ops_mpi.hpp"
 #include "zorin_d_bellman_ford/seq/include/ops_seq.hpp"
 
+// NOLINTBEGIN(performance-unnecessary-value-param)
+// clang-tidy сообщает ложное срабатывание:
+// InType передаётся по значению в коде modules/task
+
 namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
@@ -44,3 +48,4 @@ const auto kPerfTestName = ZorinDBellmanFordPerfTests::CustomPerfTestName;
 INSTANTIATE_TEST_SUITE_P(RunModeTests, ZorinDBellmanFordPerfTests, kGtestValues, kPerfTestName);
 
 }  // namespace zorin_d_bellman_ford
+// NOLINTEND(performance-unnecessary-value-param)

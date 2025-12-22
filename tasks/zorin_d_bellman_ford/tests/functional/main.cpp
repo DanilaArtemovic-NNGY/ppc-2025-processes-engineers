@@ -11,6 +11,10 @@
 #include "zorin_d_bellman_ford/mpi/include/ops_mpi.hpp"
 #include "zorin_d_bellman_ford/seq/include/ops_seq.hpp"
 
+// NOLINTBEGIN(performance-unnecessary-value-param)
+// clang-tidy сообщает ложное срабатывание:
+// InType передаётся по значению в коде modules/task
+
 namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
@@ -65,3 +69,4 @@ INSTANTIATE_TEST_SUITE_P(BellmanFordTests, ZorinDBellmanFordFuncTests, kGtestVal
 }  // namespace
 
 }  // namespace zorin_d_bellman_ford
+// NOLINTEND(performance-unnecessary-value-param)
