@@ -1,6 +1,9 @@
 #include "zorin_d_bellman_ford/seq/include/ops_seq.hpp"
 
+#include <cstddef>
 #include <cstdint>
+
+#include "zorin_d_bellman_ford/common/include/common.hpp"
 
 namespace zorin_d_bellman_ford {
 

@@ -35,8 +35,10 @@ inline GraphCrs MakeGraphCrsDeterministic(int vertex_count, int edges_per_vertex
   graph.row_ptr.resize(static_cast<std::size_t>(vertex_count) + 1, 0);
 
   const int edges = edges_per_vertex > 0 ? edges_per_vertex : 1;
-  graph.col_idx.reserve(static_cast<std::size_t>(vertex_count * edges));
-  graph.weights.reserve(static_cast<std::size_t>(vertex_count * edges));
+  const std::size_t total_edges = static_cast<std::size_t>(vertex_count) * static_cast<std::size_t>(edges);
+
+  graph.col_idx.reserve(total_edges);
+  graph.weights.reserve(total_edges);
 
   int edge_pos = 0;
   for (int vertex = 0; vertex < vertex_count; ++vertex) {
@@ -54,7 +56,7 @@ inline GraphCrs MakeGraphCrsDeterministic(int vertex_count, int edges_per_vertex
 }
 
 inline InType MakeInput(int vertex_count, int edges_per_vertex, int source) {
-  return InType{MakeGraphCrsDeterministic(vertex_count, edges_per_vertex), source};
+  return InType{.graph = MakeGraphCrsDeterministic(vertex_count, edges_per_vertex), .source = source};
 }
 
 }  // namespace zorin_d_bellman_ford

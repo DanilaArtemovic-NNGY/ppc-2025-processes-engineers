@@ -14,7 +14,7 @@ class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, Ou
   const int vertex_count = 20000;
   const int edges_per_vertex = 64;
 
-  InType input_data_{};
+  InType inputData{};
 
   void SetUp() override {
     input_data_ = MakeInput(vertex_count, edges_per_vertex, 0);

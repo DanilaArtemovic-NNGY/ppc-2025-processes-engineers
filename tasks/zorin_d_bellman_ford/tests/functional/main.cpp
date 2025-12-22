@@ -36,7 +36,7 @@ class ZorinDBellmanFordFuncTests : public ppc::util::BaseRunFuncTests<InType, Ou
   }
 
  private:
-  InType input_data_{};
+  InType inputData{};
 };
 
 namespace {

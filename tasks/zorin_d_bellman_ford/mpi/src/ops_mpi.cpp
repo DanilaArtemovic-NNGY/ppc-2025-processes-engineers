@@ -2,8 +2,12 @@
 
 #include <mpi.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <utility>
+#include <vector>
+
+#include "zorin_d_bellman_ford/common/include/common.hpp"
 
 namespace zorin_d_bellman_ford {
 
@@ -31,7 +35,7 @@ bool ZorinDBellmanFordMPI::ValidationImpl() {
   if (graph.col_idx.size() != graph.weights.size()) {
     return false;
   }
-  if (graph.row_ptr.back() != static_cast<int>(graph.col_idx.size())) {
+  if (graph.row_ptr.back() != static_cast<int>(std::ssize(graph.col_idx))) {
     return false;
   }
 
@@ -52,8 +56,7 @@ bool ZorinDBellmanFordMPI::PreProcessingImpl() {
 }
 
 bool ZorinDBellmanFordMPI::RelaxIteration(int rank, int size, const GraphCrs &graph,
-                                          const std::vector<std::int64_t> &dist,
-                                          std::vector<std::int64_t> &dist_next) const {
+                                          const std::vector<std::int64_t> &dist, std::vector<std::int64_t> &dist_next) {
   bool updated = false;
   const int vertex_count = graph.vertex_count;
 
@@ -95,7 +98,7 @@ bool ZorinDBellmanFordMPI::RunImpl() {
 
     const bool local_updated = RelaxIteration(rank, size, graph, dist, dist_next);
 
-    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_INT64_T, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
 
     int updated = local_updated ? 1 : 0;
     MPI_Allreduce(MPI_IN_PLACE, &updated, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);

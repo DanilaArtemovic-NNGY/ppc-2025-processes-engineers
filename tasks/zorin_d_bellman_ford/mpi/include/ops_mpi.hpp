@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <vector>
+
 #include "task/include/task.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"
 
@@ -18,8 +21,8 @@ class ZorinDBellmanFordMPI : public BaseTask {
   bool PreProcessingImpl() override;
   bool RunImpl() override;
   bool PostProcessingImpl() override;
-  bool RelaxIteration(int rank, int size, const GraphCrs &graph, const std::vector<std::int64_t> &dist,
-                      std::vector<std::int64_t> &dist_next) const;
+  static bool RelaxIteration(int rank, int size, const GraphCrs &graph, const std::vector<std::int64_t> &dist,
+                             std::vector<std::int64_t> &dist_next);
 };
 
 }  // namespace zorin_d_bellman_ford
