@@ -26,7 +26,7 @@ bool ZorinDBellmanFordMPI::ValidationImpl() {
     return false;
   }
 
-  if (graph.row_ptr.size() != static_cast<std::size_t>(graph.vertex_count + 1)) {
+  if (graph.row_ptr.size() != static_cast<std::size_t>(graph.vertex_count) + 1) {
     return false;
   }
   if (graph.row_ptr.front() != 0) {
@@ -67,7 +67,7 @@ bool ZorinDBellmanFordMPI::RelaxIteration(int rank, int size, const GraphCrs &gr
     }
 
     const int begin = graph.row_ptr[static_cast<std::size_t>(vertex)];
-    const int end = graph.row_ptr[static_cast<std::size_t>(vertex + 1)];
+    const int end = graph.row_ptr[static_cast<std::size_t>(vertex) + 1];
 
     for (int edge = begin; edge < end; ++edge) {
       const int to = graph.col_idx[static_cast<std::size_t>(edge)];
@@ -98,7 +98,7 @@ bool ZorinDBellmanFordMPI::RunImpl() {
 
     const bool local_updated = RelaxIteration(rank, size, graph, dist, dist_next);
 
-    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_LONG_LONG, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(dist_next.data(), dist.data(), vertex_count, MPI_INT64_T, MPI_MIN, MPI_COMM_WORLD);
 
     int updated = local_updated ? 1 : 0;
     MPI_Allreduce(MPI_IN_PLACE, &updated, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);

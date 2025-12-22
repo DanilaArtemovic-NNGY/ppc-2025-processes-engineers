@@ -23,20 +23,20 @@ class ZorinDBellmanFordFuncTests : public ppc::util::BaseRunFuncTests<InType, Ou
     const auto &test_param = std::get<static_cast<std::size_t>(ppc::util::GTestParamIndex::kTestParams)>(GetParam());
     const int v = std::get<0>(test_param);
 
-    inputData = MakeInput(v, 3, 0);
+    input_data = MakeInput(v, 3, 0);
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(inputData.graph.vertex_count) &&
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data.graph.vertex_count) &&
            output_data[0] == 0;
   }
 
   InType GetTestInputData() final {
-    return inputData;
+    return input_data;
   }
 
  private:
-  InType inputData{};
+  InType input_data{};
 };
 
 namespace {

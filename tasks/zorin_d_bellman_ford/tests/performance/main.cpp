@@ -14,19 +14,19 @@ class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, Ou
   const int vertex_count = 20000;
   const int edges_per_vertex = 64;
 
-  InType inputData{};
+  InType input_data{};
 
   void SetUp() override {
-    inputData = MakeInput(vertex_count, edges_per_vertex, 0);
+    input_data = MakeInput(vertex_count, edges_per_vertex, 0);
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(inputData.graph.vertex_count) &&
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data.graph.vertex_count) &&
            output_data[0] == 0;
   }
 
   InType GetTestInputData() final {
-    return inputData;
+    return input_data;
   }
 };
 
