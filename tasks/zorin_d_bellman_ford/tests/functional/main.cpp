@@ -6,6 +6,7 @@
 #include <tuple>
 
 #include "util/include/func_test_util.hpp"
+#include "util/include/util.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"
 #include "zorin_d_bellman_ford/mpi/include/ops_mpi.hpp"
 #include "zorin_d_bellman_ford/seq/include/ops_seq.hpp"

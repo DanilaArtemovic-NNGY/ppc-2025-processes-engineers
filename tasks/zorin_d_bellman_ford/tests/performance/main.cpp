@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
-#include <string>
-#include <string_view>
 
 #include "util/include/perf_test_util.hpp"
 #include "zorin_d_bellman_ford/common/include/common.hpp"
@@ -13,22 +11,22 @@ namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
-  const int kV_ = 8000;
-  const int kEdgesPerVertex_ = 8;
+  const int k_v = 8000;
+  const int k_edges_per_vertex = 8;
 
-  InType input_data_{};
+  InType input_data{};
 
   void SetUp() override {
-    input_data_ = MakeInput(kV_, kEdgesPerVertex_, 0);
+    input_data = MakeInput(k_v, k_edges_per_vertex, 0);
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data_.graph.vertex_count) &&
+    return !output_data.empty() && output_data.size() == static_cast<std::size_t>(input_data.graph.vertex_count) &&
            output_data[0] == 0;
   }
 
   InType GetTestInputData() final {
-    return input_data_;
+    return input_data;
   }
 };
 
