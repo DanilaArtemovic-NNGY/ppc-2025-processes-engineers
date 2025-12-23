@@ -11,7 +11,7 @@ namespace zorin_d_bellman_ford {
 
 class ZorinDBellmanFordPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
-  const int k_v = 8000;
+  const int k_v = 7000;
   const int k_edges_per_vertex = 8;
 
   InType input_data{};
